@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:myportfolio_app/widgets/app_drawer.dart';
+import 'package:http/http.dart' as http;
+import '../widgets/app_drawer.dart';
 
 class ContactPage extends StatefulWidget {
   const ContactPage({super.key});
@@ -9,37 +11,164 @@ class ContactPage extends StatefulWidget {
 }
 
 class _ContactPageState extends State<ContactPage> {
-  static const String email = "jihadyaghie@gmail.com";
-  static const String phone = "+961 81670212";
-  static const String github = "https://github.com/jihadyaghi";
-  static const String linkedin = "https://www.linkedin.com/";
+  static const Color orange = Color(0xFFFF8C00);
+  static const String endpoint =
+      "https://my-portfolio-backend-eight-xi.vercel.app/api/contact";
+
+  final nameCtrl = TextEditingController();
+  final emailCtrl = TextEditingController();
+  final msgCtrl = TextEditingController();
+
+  bool isSending = false;
+
+  bool _isValidEmail(String s) {
+    final r = RegExp(r"^[^\s@]+@[^\s@]+\.[^\s@]+$");
+    return r.hasMatch(s.trim());
+  }
+
+  void _snack(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _send() async {
+    final name = nameCtrl.text.trim();
+    final email = emailCtrl.text.trim();
+    final msg = msgCtrl.text.trim();
+
+    if (name.isEmpty || email.isEmpty || msg.isEmpty) {
+      _snack("Please fill all fields");
+      return;
+    }
+    if (!_isValidEmail(email)) {
+      _snack("Please enter a valid email");
+      return;
+    }
+    if (msg.length < 10) {
+      _snack("Message is too short");
+      return;
+    }
+
+    setState(() => isSending = true);
+
+    try {
+      final res = await http.post(
+        Uri.parse(endpoint),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"name": name, "email": email, "message": msg}),
+      );
+
+      if (!mounted) return;
+
+      if (res.statusCode == 200) {
+        _snack("Message sent");
+        nameCtrl.clear();
+        emailCtrl.clear();
+        msgCtrl.clear();
+        FocusScope.of(context).unfocus();
+      } else {
+        String err = "Failed to send";
+        try {
+          final data = jsonDecode(res.body);
+          if (data is Map && data["error"] != null) err = data["error"].toString();
+        } catch (_) {}
+        _snack("Error: $err");
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _snack("Network error. Try again.");
+    } finally {
+      if (mounted) setState(() => isSending = false);
+    }
+  }
+  @override
+  void dispose() {
+    nameCtrl.dispose();
+    emailCtrl.dispose();
+    msgCtrl.dispose();
+    super.dispose();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
         centerTitle: true,
-        title: const Text("Contact" , style: TextStyle(fontWeight: FontWeight.w900)),
+        title: const Text("Contact", style: TextStyle(fontWeight: FontWeight.w900)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(18),
         child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 900),
+            constraints: const BoxConstraints(maxWidth: 900),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _Header(isSending: isSending),
 
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black38, blurRadius: 26, offset: Offset(0, 14))
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Send a Message",
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900 , color: orange)),
+                      const SizedBox(height: 10),
+                      const Text(
+                        "Your message will be delivered directly to my Gmail.",
+                        style: TextStyle(color: Colors.black, height: 1.6),
+                      ),
+                      const SizedBox(height: 14),
+
+                      _Input(controller: nameCtrl, hint: "Your name"),
+                      const SizedBox(height: 10),
+                      _Input(controller: emailCtrl, hint: "Your email"),
+                      const SizedBox(height: 10),
+                      _Input(controller: msgCtrl, hint: "Your message", maxLines: 5),
+                      const SizedBox(height: 12),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: orange,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: isSending ? null : _send,
+                          child: isSending
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                                )
+                              : const Text("Send", style: TextStyle(fontWeight: FontWeight.w900)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
-            ), 
             ),
+          ),
         ),
       ),
     );
   }
 }
-class _Header extends StatelessWidget{
-  const _Header();
+class _Header extends StatelessWidget {
+  final bool isSending;
+  const _Header({required this.isSending});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -49,130 +178,60 @@ class _Header extends StatelessWidget{
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.white),
         gradient: LinearGradient(
-          colors:[
+          colors: [
             const Color(0xFFFF8C00),
-            Colors.white
-          ] 
-          ),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("Let's work together" , style: TextStyle(fontSize: 24 , fontWeight: FontWeight.w900)),
-          SizedBox(height: 6),
-          Text("Reach out via email or WhatsApp. I respond fast and I’m open to internships and real projects.",
-          style: TextStyle(color: Colors.white70 , height: 1.7),
-          )
-        ],
-      ),
-    );
-  }
-}
-class _ContactCard extends StatelessWidget{
-  final IconData icon;
-  final String title;
-  final String value;
-  final String primaryText;
-  final VoidCallback onPrimary;
-  final String secondaryText;
-  final VoidCallback onSecondary;
-  const _ContactCard({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.primaryText,
-    required this.onPrimary,
-    required this.secondaryText,
-    required this.onSecondary
-  });
-  @override
-  Widget build(BuildContext context) {
-    const orange = Color(0xFFFF8C00);
-    return Container(
-      width: 420,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white),
-        boxShadow: const [BoxShadow(color: Colors.black,blurRadius: 26 , offset: Offset(0, 14))]
+            Colors.white,
+          ],
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: orange,
-                  border: Border.all(color: orange)
-                ),
-                child: Icon(icon,color: orange),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child:Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,style: const TextStyle(fontWeight: FontWeight.w900,fontSize: 15)),
-                    const SizedBox(height: 2),
-                    Text(value,style: TextStyle(color: Colors.white,fontWeight: FontWeight.w900),)
-                  ],
-                ) 
-                )
-            ],
+          const Text("Let’s work together",
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 6),
+          Text(
+            isSending
+                ? "Sending..."
+                : "Send a message and it will reach my Gmail directly.",
+            style: const TextStyle(color: Colors.white70, height: 1.7),
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child:ElevatedButton( style: ElevatedButton.styleFrom(
-                  backgroundColor: orange,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsetsDirectional.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))
-                ),
-                 onPressed: onPrimary , 
-                 child: Text(primaryText,style: TextStyle(fontWeight: FontWeight.w900)),
-                 ) 
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton( style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: BorderSide(color: Colors.white),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))
-                  ),
-                  onPressed: onSecondary ,
-                   child: Text(secondaryText,style: const TextStyle(fontWeight: FontWeight.w900))
-                   )
-                  )
-            ],
-          )
         ],
       ),
     );
   }
 }
-class _Input extends StatelessWidget{
+
+class _Input extends StatelessWidget {
+  final TextEditingController controller;
   final String hint;
   final int maxLines;
-  const _Input({required this.hint,this.maxLines = 1});
+  const _Input({required this.controller, required this.hint, this.maxLines = 1});
+
   @override
   Widget build(BuildContext context) {
     return TextField(
+      controller: controller,
       maxLines: maxLines,
       style: const TextStyle(fontWeight: FontWeight.w700),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white,fontWeight: FontWeight.w700),
+        hintStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
         filled: true,
         fillColor: Colors.white,
-      
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.orange),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.black),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0x44FF8C00)),
+        ),
       ),
     );
   }
