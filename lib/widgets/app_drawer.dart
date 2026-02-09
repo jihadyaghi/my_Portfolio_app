@@ -49,6 +49,7 @@ onTap: (){
               ),
               ),
               const Divider(color: Colors.white12),
+              _item(context, Icons.home_rounded, "Home", "/"),
               _item(context,Icons.person,"About","/about"),
               _item(context, Icons.star, "Skills","/skills"),
               _item(context, Icons.work, "Projects", "/projects"),

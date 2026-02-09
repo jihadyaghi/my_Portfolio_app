@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../widgets/app_drawer.dart';
-
+import 'package:url_launcher/url_launcher.dart';
 class ContactPage extends StatefulWidget {
   const ContactPage({super.key});
 
@@ -13,8 +13,9 @@ class ContactPage extends StatefulWidget {
 class _ContactPageState extends State<ContactPage> {
   static const Color orange = Color(0xFFFF8C00);
   static const String endpoint =
-      "https://my-portfolio-backend-eight-xi.vercel.app/api/contact";
-
+    "https://my-portfolio-backend-eight-xi.vercel.app/api/contact";
+  static const String myEmail = "jihadyaghie@gmail.com";
+  static const String myPhone = "+96181670212";
   final nameCtrl = TextEditingController();
   final emailCtrl = TextEditingController();
   final msgCtrl = TextEditingController();
@@ -28,6 +29,13 @@ class _ContactPageState extends State<ContactPage> {
 
   void _snack(String text) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+  Future<void> _openUrl(String url) async{
+    final uri = Uri.parse(url);
+    final ok = await launchUrl(uri,mode: LaunchMode.externalApplication);
+    if(!ok && mounted){
+      _snack("Could not open link");
+    }
   }
 
   Future<void> _send() async {
@@ -105,6 +113,31 @@ class _ContactPageState extends State<ContactPage> {
               children: [
                 _Header(isSending: isSending),
 
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _ContactInfoCard(
+                      icon: Icons.email,
+                      title: "Email",
+                      value: myEmail,
+                      onTap: ()=>_openUrl("mailto:$myEmail")
+                    ),
+                    _ContactInfoCard(
+                      icon: Icons.phone,
+                      title: "Phone",
+                      value: myPhone,
+                      onTap: ()=>_openUrl("tel:$myPhone")
+                    ),
+                    _ContactInfoCard(
+                      icon: Icons.chat,
+                      title: "WhatsApp",
+                      value: "Chat with me",
+                      onTap: ()=>_openUrl("https://wa.me/$myPhone?text=${Uri.encodeComponent("Hello jihad , I saw your portfolio")}")
+                    )
+                  ],
+                ),
                 const SizedBox(height: 18),
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -188,13 +221,13 @@ class _Header extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text("Let’s work together",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900 , color: Colors.black)),
           const SizedBox(height: 6),
           Text(
             isSending
                 ? "Sending..."
                 : "Send a message and it will reach my Gmail directly.",
-            style: const TextStyle(color: Colors.white70, height: 1.7),
+            style: const TextStyle(color: Colors.grey, height: 1.7),
           ),
         ],
       ),
@@ -231,6 +264,61 @@ class _Input extends StatelessWidget {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: Color(0x44FF8C00)),
+        ),
+      ),
+    );
+  }
+}
+class _ContactInfoCard extends StatelessWidget{
+  final IconData icon;
+  final String title;
+  final String value;
+  final VoidCallback onTap;
+  const _ContactInfoCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.onTap
+  });
+  @override
+  Widget build(BuildContext context) {
+    const orange = Color(0xFFFF8C00);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black),
+          boxShadow: const [
+            BoxShadow(color: Colors.black,blurRadius: 18,offset: Offset(0, 10))
+          ]
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: orange,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon,color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child:Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,style: TextStyle(fontWeight: FontWeight.bold,fontSize: 14 , color: orange)),
+                  const SizedBox(height: 4),
+                  Text(value,style: TextStyle(color: Colors.black,fontWeight: FontWeight.bold))
+                ],
+              ) 
+              )
+          ],
         ),
       ),
     );
